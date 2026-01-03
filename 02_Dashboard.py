@@ -14,7 +14,7 @@ st.set_page_config(
 @st.cache_data
 def load_data():
     return pd.read_csv(
-        'df_quejas_telecom_final.csv',
+        'df_telecom_final.csv',
         parse_dates=['fecha_ingreso']
     )
 
@@ -201,3 +201,4 @@ st.markdown("""
 La correlación no implica causalidad.  
 Estas relaciones indican asociación estadística, no causa directa.
 """)
+
