@@ -21,85 +21,103 @@ df_pob = load_poblacion()
 
 st.title("Análisis de Quejas en Telecomunicaciones entre 2022 y 2025 (PROFECO)")
 
-def multiselect_all(label, options, default_all=True, key=None):
-    select_all = st.checkbox(
-        f"Seleccionar todos — {label}",
-        value=default_all,
-        key=f"{key}_all"
-    )
-    if select_all:
-        return st.multiselect(label, options, options, key=key)
-    else:
-        return st.multiselect(label, options, [], key=key)
+def multiselect_all(label, options, key):
+    """
+    Multiselect con botón real de seleccionar / deseleccionar todos
+    Funciona correctamente en apps desplegadas
+    """
+
+    if key not in st.session_state:
+        st.session_state[key] = options
+
+    col1, col2 = st.columns([3, 1])
+
+    with col1:
+        selection = st.multiselect(
+            label,
+            options,
+            default=st.session_state[key],
+            key=f"{key}_multiselect"
+        )
+
+    with col2:
+        if st.button("Todos", key=f"{key}_all"):
+            st.session_state[key] = options
+            st.rerun()
+
+        if st.button("Ninguno", key=f"{key}_none"):
+            st.session_state[key] = []
+            st.rerun()
+
+    st.session_state[key] = selection
+    return selection
+
 
 ## BLOQUE 1 : Panorama general
 
-st.header("Bloque 1: Panorama general — Compañías móviles")
+st.header("Bloque 1: Comparación de compañías")
 
-bloque1 = st.container()
+# Filtros
+f1, f2, f3, f4 = st.columns(4)
 
-with bloque1:
-    col_filtros, col_contenido = st.columns([1, 4])
-
-#Filtros bloque 1:
-
-with col_filtros:
-    st.subheader("Filtros")
-
-    anios_sel = multiselect_all(
+with f1:
+    anios_b1 = multiselect_all(
         "Año",
         sorted(df["anio"].dropna().unique()),
         key="b1_anio"
     )
 
-    estados_sel = multiselect_all(
+with f2:
+    estados_b1 = multiselect_all(
         "Estado",
         sorted(df["estado"].dropna().unique()),
         key="b1_estado"
     )
 
-    proveedores_sel = multiselect_all(
+with f3:
+    proveedores_b1 = multiselect_all(
         "Proveedor",
         sorted(df["proveedor_top"].dropna().unique()),
         key="b1_proveedor"
     )
 
+with f4:
     top_n = st.slider(
-        "Número de proveedores (Top N)",
+        "Top N proveedores",
         min_value=1,
         max_value=10,
         value=5
     )
 
-# Datos filtrados
+
+# Filtros
+
 df_b1 = df.copy()
 
-if anios_sel:
-    df_b1 = df_b1[df_b1["anio"].isin(anios_sel)]
+if anios_b1:
+    df_b1 = df_b1[df_b1["anio"].isin(anios_b1)]
 
-if estados_sel:
-    df_b1 = df_b1[df_b1["estado"].isin(estados_sel)]
+if estados_b1:
+    df_b1 = df_b1[df_b1["estado"].isin(estados_b1)]
 
-if proveedores_sel:
-    df_b1 = df_b1[df_b1["proveedor_top"].isin(proveedores_sel)]
+if proveedores_b1:
+    df_b1 = df_b1[df_b1["proveedor_top"].isin(proveedores_b1)]
 
-# Contenido bloque 1
-with col_contenido:
-    k1, k2, k3 = st.columns(3)
+#kpis
+k1, k2, k3 = st.columns(3)
 
-    k1.metric("Total de quejas", f"{len(df_b1):,}")
+k1.metric("Total de quejas", f"{len(df_b1):,}")
 
-    k2.metric(
-        "Tasa de conciliación",
-        f"{df_b1['resuelta'].mean()*100:.1f}%"
-    )
+k2.metric(
+    "Tasa de conciliación",
+    f"{df_b1['resuelta'].mean()*100:.1f}%"
+)
 
-    k3.metric(
-        "Mediana días de resolución",
-        f"{df_b1['dias_resolucion'].median():.0f}"
-    )
-
-# Gráfica 1 Evolución mensual (Top N proveedores)
+k3.metric(
+    "Mediana días de resolución",
+    f"{df_b1['dias_resolucion'].median():.0f}"
+)
+# Gráfica 1 Evolución mensua
 top_prov = (
     df_b1["proveedor_top"]
     .value_counts()
@@ -124,12 +142,12 @@ fig1 = px.line(
     x="fecha_ingreso",
     y="quejas",
     color="proveedor_top",
-    title="Evolución mensual de quejas (Top proveedores)"
+    title="Evolución mensual de quejas"
 )
 
 st.plotly_chart(fig1, use_container_width=True)
 
-# Gráfica 2 — Barras compuestas (quejas vs conciliadas)
+# Gráfica 2 — Quejas vs conciliadas
 df_bar = (
     df_b1.groupby("proveedor_top")
     .agg(
@@ -157,7 +175,7 @@ fig2 = px.bar(
 
 st.plotly_chart(fig2, use_container_width=True)
 
-# Gráficas 3 y 4
+# Griaficas 3 y 4
 c1, c2 = st.columns(2)
 
 with c1:
@@ -176,9 +194,9 @@ with c2:
     )
     st.plotly_chart(fig4, use_container_width=True)
 
-#Gráfica 5 — Tiempo de atención por compañía
+# Gráfica 5 Tiempo de atención
 
-    df_time = (
+df_time = (
     df_b1.groupby("proveedor_top")["dias_resolucion"]
     .median()
     .reset_index()
@@ -192,6 +210,9 @@ fig5 = px.bar(
 )
 
 st.plotly_chart(fig5, use_container_width=True)
+
+
+
 
 ## BLOQUE 2 — Comparación entre estados
 
