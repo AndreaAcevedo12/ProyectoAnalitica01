@@ -202,7 +202,8 @@ with tab1:
     prov_b3 = st.multiselect(
         "Proveedor",
         sorted(df["proveedor_top"].unique()),
-        default=sorted(df["proveedor_top"].unique())
+        default=sorted(df["proveedor_top"].unique()),
+        key="prov_b3"
     )
 
     problema_sel = st.selectbox(
@@ -316,4 +317,5 @@ with tab2:
         ),
         use_container_width=True
     )
+
 
