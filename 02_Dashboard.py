@@ -180,7 +180,8 @@ with tab1:
     prov_b2 = st.multiselect(
         "Proveedor",
         sorted(df["proveedor_top"].unique()),
-        default=sorted(df["proveedor_top"].unique())
+        default=sorted(df["proveedor_top"].unique()),
+         key="prov_b2"
     )
 
     df_b2 = df[(df["anio"] == anio_sel) & (df["proveedor_top"].isin(prov_b2))]
@@ -315,3 +316,4 @@ with tab2:
         ),
         use_container_width=True
     )
+
