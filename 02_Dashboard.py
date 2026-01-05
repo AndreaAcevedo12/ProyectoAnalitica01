@@ -2,6 +2,8 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.express as px
+from scipy.stats import pearsonr
+
 
 st.set_page_config(page_title="Quejas Telecomunicaciones", layout="wide")
 
@@ -54,8 +56,9 @@ st.title("Análisis de Quejas en Telecomunicaciones (PROFECO 2022–2025)")
 # PESTAÑAS
 
 
-tab1, tab2 = st.tabs([
+tab1, tab2, tab3 = st.tabs([
     "Análisis descriptivo",
+    "Análisis económico e inferencial",
     "Análisis multivariado de proveedores"
 ])
 
@@ -232,11 +235,102 @@ with tab1:
     tabla_motivos["tasa_conciliacion"] *= 100
     st.dataframe(tabla_motivos)
 
-
-# TAB 2 — BLOQUE 5: ANÁLISIS MULTIVARIADO
-
+# TAB 2 — BLOQUE 4: ANÁLISIS ECONÓMICO E INFERENCIAL
 
 with tab2:
+
+    st.header("Análisis económico e inferencial")
+
+    st.markdown(
+        """
+        Se evalúa la **existencia de relaciones lineales**
+        entre variables económicas y operativas mediante:
+        
+        - Diagramas de dispersión
+        - Correlación de Pearson
+        - Prueba de hipótesis con t de Student (α = 0.05)
+        """
+    )
+
+    # Preparamos dataset económico
+    eco_df = df[[
+        "monto_reclamado",
+        "monto_recuperado",
+        "resuelta",
+        "dias_resolucion"
+    ]].dropna()
+
+    eco_df["porcentaje_resolucion"] = eco_df["resuelta"] * 100
+
+    def analizar_correlacion(x, y, x_label, y_label):
+        r, p = pearsonr(x, y)
+
+        fig = px.scatter(
+            x=x,
+            y=y,
+            labels={"x": x_label, "y": y_label},
+            title=f"{y_label} vs {x_label}"
+        )
+
+        st.plotly_chart(fig, use_container_width=True)
+
+        st.markdown(f"""
+        **Coeficiente de correlación (r):** {r:.3f}  
+        **p-value:** {p:.4f}
+        """)
+
+        if p <= 0.05:
+            st.success(
+                "Con un nivel de significancia de 0.05, se **rechaza la hipótesis nula**. "
+                "Existe evidencia estadística de **correlación lineal**."
+            )
+        else:
+            st.warning(
+                "Con un nivel de significancia de 0.05, **no se rechaza la hipótesis nula**. "
+                "No se encontró evidencia suficiente de correlación lineal."
+            )
+
+        st.divider()
+
+    # 1 Monto reclamado vs monto recuperado
+    st.subheader("Monto reclamado vs monto recuperado")
+
+    analizar_correlacion(
+        eco_df["monto_reclamado"],
+        eco_df["monto_recuperado"],
+        "Monto reclamado",
+        "Monto recuperado"
+    )
+
+    # 2 Porcentaje de resolución vs monto reclamado
+    st.subheader("Porcentaje de resolución vs monto reclamado")
+
+    analizar_correlacion(
+        eco_df["monto_reclamado"],
+        eco_df["porcentaje_resolucion"],
+        "Monto reclamado",
+        "Porcentaje de resolución (%)"
+    )
+
+    # 3 Porcentaje de resolución vs días de resolución
+    st.subheader("Porcentaje de resolución vs días de resolución")
+
+    analizar_correlacion(
+        eco_df["dias_resolucion"],
+        eco_df["porcentaje_resolucion"],
+        "Días de resolución",
+        "Porcentaje de resolución (%)"
+    )
+
+
+
+
+
+
+# TAB 3 — BLOQUE 5: ANÁLISIS MULTIVARIADO
+
+
+with tab3:
 
     st.header("Análisis multivariado de proveedores")
 
@@ -317,5 +411,6 @@ with tab2:
         ),
         use_container_width=True
     )
+
 
 
