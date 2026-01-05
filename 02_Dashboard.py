@@ -308,7 +308,7 @@ with tab2:
         eco_df["dias_resolucion"],
         eco_df["monto_reclamado"],
         "Días de resolución",
-        "Porcentaje de resolución (%)"
+        "Monto reclamado"
     )
 
     # 3 Porcentaje de resolución vs días de resolución
@@ -318,13 +318,9 @@ with tab2:
         eco_df["dias_resolucion"],
         eco_df["monto_recuperado"],
         "Días de resolución",
-        "Porcentaje de resolución (%)"
+        "Monto reclamado"
     )
     
-
-
-
-
 
 
 # TAB 3 — BLOQUE 5: ANÁLISIS MULTIVARIADO
@@ -411,6 +407,7 @@ with tab3:
         ),
         use_container_width=True
     )
+
 
 
 
