@@ -301,26 +301,26 @@ with tab2:
         "Monto reclamado",
         "Monto recuperado"
     )
-
-    # 2 Porcentaje de resolución vs monto reclamado
-    st.subheader("Porcentaje de resolución vs monto reclamado")
+    # 2 Porcentaje de resolución vs días de resolución
+    st.subheader("Monto reclamado vs días de resolución")
 
     analizar_correlacion(
+        eco_df["dias_resolucion"],
         eco_df["monto_reclamado"],
-        eco_df["porcentaje_resolucion"],
-        "Monto reclamado",
+        "Días de resolución",
         "Porcentaje de resolución (%)"
     )
 
     # 3 Porcentaje de resolución vs días de resolución
-    st.subheader("Porcentaje de resolución vs días de resolución")
+    st.subheader("Monto recuperado vs días de resolución")
 
     analizar_correlacion(
         eco_df["dias_resolucion"],
-        eco_df["porcentaje_resolucion"],
+        eco_df["monto_recuperado"],
         "Días de resolución",
         "Porcentaje de resolución (%)"
     )
+    
 
 
 
@@ -411,6 +411,7 @@ with tab3:
         ),
         use_container_width=True
     )
+
 
 
 
