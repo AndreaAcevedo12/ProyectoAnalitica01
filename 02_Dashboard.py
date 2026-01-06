@@ -52,6 +52,33 @@ corr_df = load_corr()
 
 st.title("Análisis de Quejas en Telecomunicaciones (PROFECO 2022–2025)")
 
+def limpiar_clave(series):
+    if series is None: return None
+    # Mayúsculas, sin espacios y sin acentos para asegurar el merge interno
+    return series.astype(str).str.upper().str.strip().str.normalize('NFKD').str.encode('ascii', errors='ignore').str.decode('utf-8')
+
+# 1. Claves para DF Principal
+df["_key_estado"] = limpiar_clave(df["estado"])
+df["_key_prov"] = limpiar_clave(df["nombre_comercial"])
+
+# 2. Claves para DF Población
+col_estado_pob = [c for c in df_pob.columns if "estado" in c.lower() or "entidad" in c.lower()][0]
+df_pob["_key_estado"] = limpiar_clave(df_pob[col_estado_pob])
+
+# Detectar columna de población (Año más reciente)
+cols_anios = [c for c in df_pob.columns if str(c).strip() in ['2025','2024','2023','2022','2020']]
+cols_anios.sort(reverse=True)
+col_pob_target = cols_anios[0] if cols_anios else df_pob.select_dtypes('number').columns[-1]
+df_pob["_pob_uso"] = df_pob[col_pob_target]
+
+# 3. Claves para Perfil (Usuarios)
+if "proveedor_top" not in perfil_df.columns:
+    perfil_df = perfil_df.reset_index()
+    if "proveedor_top" not in perfil_df.columns:
+         perfil_df.rename(columns={perfil_df.columns[0]: "proveedor_top"}, inplace=True)
+
+perfil_df["_key_prov"] = limpiar_clave(perfil_df["proveedor_top"])
+
 
 # PESTAÑAS
 
@@ -65,175 +92,224 @@ tab1, tab2, tab3 = st.tabs([
 
 # TAB 1 — DASHBOARD ORIGINAL (BLOQUES 1, 2 y 3)
 
-#  BLOQUE 1 
 with tab1:
+    st.markdown("### Panorama general de quejas")
+    
+    # Filtros
+    with st.container():
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            f_min, f_max = df["fecha_ingreso"].min(), df["fecha_ingreso"].max()
+            date_range = st.date_input("Periodo", [f_min, f_max])
+        with c2:
+            all_states = sorted(df["estado"].unique())
+            sel_states = st.multiselect("Estados", all_states, default=all_states)
+        with c3:
+            all_provs = sorted(df["nombre_comercial"].unique())
+            top_5 = df["nombre_comercial"].value_counts().head(5).index.tolist()
+            sel_provs = st.multiselect("Proveedores", all_provs, default=top_5)
 
-
-    st.header("Bloque 1: Comparación de compañías")
-
-    f1, f2, f3, f4 = st.columns(4)
-
-    with f1:
-        anios_b1 = st.multiselect(
-            "Año",
-            sorted(df["anio"].dropna().unique()),
-            default=sorted(df["anio"].dropna().unique())
+    # Aplicar filtros
+    if len(date_range) == 2:
+        mask = (
+            (df["fecha_ingreso"].dt.date >= date_range[0]) & 
+            (df["fecha_ingreso"].dt.date <= date_range[1]) &
+            (df["estado"].isin(sel_states)) &
+            (df["nombre_comercial"].isin(sel_provs))
         )
+        df_filtered = df[mask].copy()
+    else:
+        df_filtered = df.copy()
 
-    with f2:
-        estados_b1 = st.multiselect(
-            "Estado",
-            sorted(df["estado"].dropna().unique()),
-            default=sorted(df["estado"].dropna().unique())
-        )
-
-    with f3:
-        proveedores_b1 = st.multiselect(
-            "Proveedor",
-            sorted(df["proveedor_top"].dropna().unique()),
-            default=sorted(df["proveedor_top"].dropna().unique())
-        )
-
-    with f4:
-        top_n = st.slider("Top N proveedores", 1, 10, 7)
-
-    df_b1 = df.copy()
-
-    if anios_b1:
-        df_b1 = df_b1[df_b1["anio"].isin(anios_b1)]
-    if estados_b1:
-        df_b1 = df_b1[df_b1["estado"].isin(estados_b1)]
-    if proveedores_b1:
-        df_b1 = df_b1[df_b1["proveedor_top"].isin(proveedores_b1)]
-
+    # KPIs
+    total_q = len(df_filtered)
+    try:
+        if "conciliada" in df_filtered.columns:
+            conciliadas = df_filtered["conciliada"].sum()
+        else:
+            conciliadas = df_filtered["estado_procesal"].astype(str).str.contains("Conciliada|Favor", case=False).sum()
+        pct_concil = (conciliadas / total_q * 100) if total_q > 0 else 0
+    except:
+        pct_concil = 0
+    
     k1, k2, k3 = st.columns(3)
-    k1.metric("Total de quejas", f"{len(df_b1):,}")
-    k2.metric("Tasa de conciliación", f"{df_b1['resuelta'].mean()*100:.1f}%")
-    k3.metric("Mediana días de resolución", f"{df_b1['dias_resolucion'].median():.0f}")
+    k1.metric("Total Quejas", f"{total_q:,}")
+    k2.metric("Proveedores", f"{df_filtered['nombre_comercial'].nunique()}")
+    k3.metric("% Conciliación", f"{pct_concil:.1f}%")
+    
+    st.markdown("---")
 
-    top_prov = df_b1["proveedor_top"].value_counts().head(top_n).index
+    # Bloque 1: Evolución
+    
+    st.subheader("Tendencia temporal")
+    
+    freq_alias = "M"
+    
+    df_evo = df_filtered.set_index("fecha_ingreso").groupby(
+        [pd.Grouper(freq=freq_alias), "nombre_comercial", "_key_prov"]
+    ).size().reset_index(name="conteo")
 
-    df_line = (
-        df_b1[df_b1["proveedor_top"].isin(top_prov)]
-        .groupby([df_b1["fecha_ingreso"].dt.to_period("M"), "proveedor_top"])
-        .size()
-        .reset_index(name="quejas")
-    )
-    df_line["fecha_ingreso"] = df_line["fecha_ingreso"].astype(str)
+    col_evo_1, col_evo_2 = st.columns(2)
 
-    st.plotly_chart(
-        px.line(df_line, x="fecha_ingreso", y="quejas", color="proveedor_top",
-                title="Evolución mensual de quejas"),
-        use_container_width=True
-    )
-
-    df_bar = (
-        df_b1.groupby("proveedor_top")
-        .agg(total_quejas=("resuelta", "count"),
-             conciliadas=("resuelta", "sum"))
-        .reset_index()
-    )
-
-    df_bar = df_bar.melt(
-        id_vars="proveedor_top",
-        value_vars=["total_quejas", "conciliadas"],
-        var_name="tipo",
-        value_name="cantidad"
-    )
-
-    st.plotly_chart(
-        px.bar(df_bar, x="proveedor_top", y="cantidad",
-               color="tipo", barmode="group",
-               title="Quejas totales vs conciliadas"),
-        use_container_width=True
-    )
-
-    c1, c2 = st.columns(2)
-
-    with c1:
-        st.plotly_chart(
-            px.pie(df_b1, names="tipo_servicio",
-                   title="Inconformidades por tipo de servicio"),
-            use_container_width=True
+    with col_evo_1:
+        st.markdown("**1. Volumen absoluto**")
+        fig_abs = px.line(
+            df_evo, x="fecha_ingreso", y="conteo", color="nombre_comercial", markers=True,
+            title="Quejas mensuales",
+            labels={"conteo": "Quejas", "fecha_ingreso": "Fecha"}
         )
+        fig_abs.update_layout(legend=dict(orientation="h", y=-0.2))
+        st.plotly_chart(fig_abs, use_container_width=True)
 
-    with c2:
-        st.plotly_chart(
-            px.pie(df_b1, names="estado_procesal",
-                   title="Estatus de inconformidades"),
-            use_container_width=True
+    with col_evo_2:
+        st.markdown("**2. Tasa real (por 10k usuarios)**")
+        # Cruce con usuarios
+        df_evo_rel = pd.merge(
+            df_evo, 
+            perfil_df[["_key_prov", "usuarios_totales"]], 
+            on="_key_prov", 
+            how="left"
         )
+        df_evo_rel["usuarios_totales"] = pd.to_numeric(df_evo_rel["usuarios_totales"], errors='coerce').fillna(1)
+        df_evo_rel["tasa"] = (df_evo_rel["conteo"] / df_evo_rel["usuarios_totales"]) * 10000
+        df_plot_rel = df_evo_rel[df_evo_rel["usuarios_totales"] > 100]
 
-    df_time = (
-        df_b1.groupby("proveedor_top")["dias_resolucion"]
-        .median()
-        .reset_index()
-    )
+        if not df_plot_rel.empty:
+            fig_rel = px.line(
+                df_plot_rel, x="fecha_ingreso", y="tasa", color="nombre_comercial", markers=True,
+                title="Impacto ponderado por usuarios",
+                labels={"tasa": "Tasa", "fecha_ingreso": "Fecha"}
+            )
+            fig_rel.update_layout(legend=dict(orientation="h", y=-0.2))
+            st.plotly_chart(fig_rel, use_container_width=True)
+        else:
+            st.info("Falta información de usuarios para calcular la tasa.")
 
-    st.plotly_chart(
-        px.bar(df_time, x="proveedor_top", y="dias_resolucion",
-               title="Mediana de días de resolución por compañía"),
-        use_container_width=True
-    )
+    # Bloque 2: Ranking geográfico
+    
+    st.markdown("---")
+    c_rank_head, c_rank_opt = st.columns([2, 1])
+    with c_rank_head:
+        st.subheader("Ranking por estado")
+    with c_rank_opt:
+        # Checkbox para quitar CDMX
+        ocultar_cdmx_rank = st.checkbox("Ocultar CDMX", value=False, key="rank_exclude")
 
-    #  BLOQUE 2 
-    st.header("Bloque 2: Comparación entre estados")
+    try:
+        # 1. Agrupar
+        quejas_edo = df_filtered["_key_estado"].value_counts().reset_index()
+        quejas_edo.columns = ["_key_estado", "quejas"]
+        
+        # 2. Merge con población
+        df_ranking = pd.merge(quejas_edo, df_pob, on="_key_estado", how="left")
+        
+        # 3. Calcular tasa
+        df_ranking["_pob_uso"] = pd.to_numeric(df_ranking["_pob_uso"], errors='coerce').fillna(1)
+        df_ranking["tasa_100k"] = (df_ranking["quejas"] / df_ranking["_pob_uso"]) * 100000
+        
+        # 4. Recuperar nombre
+        lookup_names = df_filtered[["_key_estado", "estado"]].drop_duplicates().set_index("_key_estado")
+        df_ranking["nombre_estado"] = df_ranking["_key_estado"].map(lookup_names["estado"]).fillna(df_ranking["_key_estado"])
+        
+        # 5. Filtro para ocultar la cdmx
+        if ocultar_cdmx_rank:
+            df_ranking = df_ranking[~df_ranking["_key_estado"].str.contains("CIUDAD", regex=True)]
 
-    anio_sel = st.selectbox("Selecciona año", sorted(df["anio"].unique()))
-    prov_b2 = st.multiselect(
-        "Proveedor",
-        sorted(df["proveedor_top"].unique()),
-        default=sorted(df["proveedor_top"].unique()),
-         key="prov_b2"
-    )
+        # 6. Ordenar y graficar
+        df_ranking = df_ranking.sort_values("tasa_100k", ascending=True) 
+        
+        # Ajustamos altura dinámica según la cantidad de estados
+        altura_grafica = max(400, len(df_ranking) * 25)
 
-    df_b2 = df[(df["anio"] == anio_sel) & (df["proveedor_top"].isin(prov_b2))]
-
-    tabla_estados = df_b2.groupby("estado").size().reset_index(name="quejas")
-    tabla_estados = tabla_estados.merge(
-        df_pob[["estado", str(anio_sel)]], on="estado", how="left"
-    )
-    tabla_estados["quejas_100k"] = (
-        tabla_estados["quejas"] / tabla_estados[str(anio_sel)] * 100000
-    )
-
-    st.dataframe(tabla_estados.sort_values("quejas_100k", ascending=False))
-
-    #  BLOQUE 3 
-    st.header("Bloque 3: Motivos de reclamación")
-
-    prov_b3 = st.multiselect(
-        "Proveedor",
-        sorted(df["proveedor_top"].unique()),
-        default=sorted(df["proveedor_top"].unique()),
-        key="prov_b3"
-    )
-
-    problema_sel = st.selectbox(
-        "Problema clasificado",
-        sorted(df["problema_clasificado"].unique())
-    )
-
-    top_n_motivos = st.slider("Número de motivos a mostrar", 5, 20, 10)
-
-    df_b3 = df[
-        (df["proveedor_top"].isin(prov_b3)) &
-        (df["problema_clasificado"] == problema_sel)
-    ]
-
-    tabla_motivos = (
-        df_b3.groupby("motivo_reclamacion")
-        .agg(
-            frecuencia=("resuelta", "count"),
-            tasa_conciliacion=("resuelta", "mean")
+        fig_rank = px.bar(
+            df_ranking,
+            x="tasa_100k",
+            y="nombre_estado",
+            orientation='h',
+            text_auto=".1f",
+            color="tasa_100k",
+            color_continuous_scale="Reds",
+            title=f"Incidencia (Quejas x 100k hab) - Base: {col_pob_target}",
+            labels={"tasa_100k": "Tasa", "nombre_estado": ""}
         )
-        .reset_index()
-        .sort_values("frecuencia", ascending=False)
-        .head(top_n_motivos)
-    )
+        fig_rank.update_layout(height=altura_grafica)
+        st.plotly_chart(fig_rank, use_container_width=True)
+        
+    except Exception as e:
+        st.error(f"Error calculando el ranking: {e}")
 
-    tabla_motivos["tasa_conciliacion"] *= 100
-    st.dataframe(tabla_motivos)
+    # Bloque 3: Resolución y matriz de calor
+
+    st.markdown("---")
+    r2_c1, r2_c2 = st.columns(2)
+
+    with r2_c1:
+        st.subheader("Resolución (%)")
+        
+        df_stack = df_filtered.groupby(["nombre_comercial", "estado_procesal"]).size().reset_index(name="conteo")
+        totals = df_stack.groupby("nombre_comercial")["conteo"].transform("sum")
+        df_stack["porcentaje"] = (df_stack["conteo"] / totals) * 100
+        
+        order_prov = df_filtered["nombre_comercial"].value_counts().index
+        
+        fig_stack = px.bar(
+            df_stack, y="nombre_comercial", x="porcentaje", color="estado_procesal",
+            orientation='h', text_auto=".0f", category_orders={"nombre_comercial": order_prov}
+        )
+        fig_stack.update_layout(barmode='stack', legend=dict(orientation="h", y=-0.2), yaxis_title=None)
+        st.plotly_chart(fig_stack, use_container_width=True)
+
+    with r2_c2:
+        st.subheader("Mapa de calor de quejas por estado y proveedor")
+        
+        # Controles del Heatmap
+        col_h1, col_h2 = st.columns(2)
+        with col_h1:
+            exclude_cdmx_heat = st.checkbox("Ocultar CDMX", value=False, key="heat_exclude")
+        with col_h2:
+            # Opción para normalizar o no
+            modo_heatmap = st.radio("Métrica", ["Conteo total", "Tasa x 100k"], horizontal=True)
+        
+        # Filtro de datos
+        df_heat_s = df_filtered.copy()
+        if exclude_cdmx_heat:
+            df_heat_s = df_heat_s[~df_heat_s["_key_estado"].str.contains("CIUDAD", regex=True)]
+            
+        top_p = df_heat_s["nombre_comercial"].value_counts().head(10).index
+        top_e = df_heat_s["estado"].value_counts().head(10).index
+        
+        df_heat = df_heat_s[
+            (df_heat_s["nombre_comercial"].isin(top_p)) &
+            (df_heat_s["estado"].isin(top_e))
+        ]
+        
+        if not df_heat.empty:
+            matriz = pd.crosstab(df_heat["nombre_comercial"], df_heat["estado"])
+            
+            if modo_heatmap == "Tasa x 100k":
+                # Lógica de Normalización
+                pob_lookup = df_pob.set_index("_key_estado")["_pob_uso"]
+                cols_clean = [limpiar_clave(pd.Series([x]))[0] for x in matriz.columns]
+                vals_pob = pob_lookup.reindex(cols_clean).fillna(1).values
+                matriz_final = matriz.div(vals_pob, axis=1) * 100000
+                fmt = ".1f"
+                titulo_leg = "Tasa"
+            else:
+                # Lógica de Conteo Puro
+                matriz_final = matriz
+                fmt = "d"
+                titulo_leg = "Quejas"
+            
+            fig_heat = px.imshow(
+                matriz_final,
+                text_auto=fmt,
+                aspect="auto",
+                color_continuous_scale="Viridis" if modo_heatmap == "Conteo Total" else "Magma",
+                labels=dict(x="Estado", y="Proveedor", color=titulo_leg),
+            )
+            st.plotly_chart(fig_heat, use_container_width=True)
+        else:
+            st.info("Datos insuficientes para la selección actual.")
 
 # TAB 2 — BLOQUE 4: ANÁLISIS ECONÓMICO E INFERENCIAL
 
@@ -407,6 +483,7 @@ with tab3:
         ),
         use_container_width=True
     )
+
 
 
 
