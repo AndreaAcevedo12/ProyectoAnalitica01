@@ -311,6 +311,86 @@ with tab1:
         else:
             st.info("Datos insuficientes para la selección actual.")
 
+    # Bloque 4: motivos dee reclamación
+    st.markdown("---")
+    st.subheader("Detalle de motivos de reclamación")
+
+    # Crear columna año auxiliar si no existe
+    if "año" not in df.columns:
+        df["año"] = df["fecha_ingreso"].dt.year
+
+    # Listas para filtros
+    unique_provs = sorted(df["nombre_comercial"].unique())
+    unique_years = sorted(df["año"].unique())
+    unique_problems = sorted(df["problema_clasificado"].dropna().unique())
+
+    # Contenedor de filtros específicos para este bloque
+    c_f_prov, c_f_anio, c_f_prob = st.columns(3)
+    
+    with c_f_prov:
+        sel_prov_top = st.selectbox("Seleccionar proveedor", unique_provs, index=0)
+    with c_f_anio:
+        sel_anio_top = st.selectbox("Seleccionar año", unique_years, index=len(unique_years)-1)
+    with c_f_prob:
+        sel_prob_clas = st.selectbox("Seleccionar problema", unique_problems, index=0)
+
+    col_g1, col_g2 = st.columns(2)
+
+    # Gráfica 1: Pastel - Inconformidades por tipo de servicio
+    with col_g1:
+        st.markdown(f"**Inconformidades por tipo de servicio ({sel_anio_top})**")
+        
+        # Filtros: proveedor + año
+        df_pie = df[
+            (df["nombre_comercial"] == sel_prov_top) &
+            (df["año"] == sel_anio_top)
+        ]
+        
+        if not df_pie.empty:
+            pie_data = df_pie["tipo_servicio"].value_counts().reset_index()
+            pie_data.columns = ["tipo_servicio", "conteo"]
+            
+            fig_pie = px.pie(
+                pie_data, 
+                names="tipo_servicio", 
+                values="conteo",
+                title=f"Distribución servicios - {sel_prov_top}",
+                hole=0.4
+            )
+            st.plotly_chart(fig_pie, use_container_width=True)
+        else:
+            st.warning("No hay datos para la combinación Proveedor + Año seleccionada.")
+
+    # Gráfica 2: Barras - Top motivos de reclamación
+    with col_g2:
+        st.markdown(f"**Top motivos: {sel_prob_clas}**")
+
+        df_bar = df[
+            (df["nombre_comercial"] == sel_prov_top) &
+            (df["problema_clasificado"] == sel_prob_clas)
+        ]
+        
+        if not df_bar.empty:
+            # Top 10 motivos
+            bar_data = df_bar["motivo_reclamacion"].value_counts().head(10).reset_index()
+            bar_data.columns = ["motivo_reclamacion", "frecuencia"]
+            
+            # Ordenar para que la barra mayor salga arriba
+            bar_data = bar_data.sort_values("frecuencia", ascending=True)
+
+            fig_bar = px.bar(
+                bar_data, 
+                x="frecuencia", 
+                y="motivo_reclamacion", 
+                orientation='h',
+                text_auto=True,
+                title=f"Top 10 Motivos de reclamación",
+                labels={"frecuencia": "Frecuencia", "motivo_reclamacion": ""}
+            )
+            st.plotly_chart(fig_bar, use_container_width=True)
+        else:
+            st.warning("No hay datos para la combinación Proveedor + Problema seleccionada.")
+
 # TAB 2 — BLOQUE 4: ANÁLISIS ECONÓMICO E INFERENCIAL
 
 with tab2:
@@ -483,6 +563,7 @@ with tab3:
         ),
         use_container_width=True
     )
+
 
 
 
