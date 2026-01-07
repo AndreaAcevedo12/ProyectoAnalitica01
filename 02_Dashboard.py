@@ -589,6 +589,12 @@ with tab2:
         ),
         use_container_width=True
     )
+    total_quejas_prov = (
+        df_eco.groupby("proveedor_top")
+        .size()
+        .to_dict()
+    )
+
 
     # CASO A: monto reclamado > 0 y recuperado = 0
 
@@ -605,25 +611,25 @@ with tab2:
         .reset_index(name="casos")
     )
 
-    casos_no_rec["usuarios"] = casos_no_rec["proveedor_top"].map(
-        usuarios_por_proveedor
+    casos_no_rec["total_quejas"] = casos_no_rec["proveedor_top"].map(
+        total_quejas_prov
     )
 
     if normalizar_casos:
-        casos_no_rec["casos"] = (
-            casos_no_rec["casos"]
-            / casos_no_rec["usuarios"] * 100000
+        casos_no_rec["porcentaje"] = (
+        casos_no_rec["casos"]
+        / casos_no_rec["total_quejas"] * 100
         )
 
     casos_no_rec = casos_no_rec.sort_values("casos", ascending=True)
 
     st.plotly_chart(
         px.bar(
-            casos_no_rec,
-            x="casos",
+            casos_no_rec.sort_values("porcentaje", ascending=True),
+            x="porcentaje",
             y="proveedor_top",
             orientation="h",
-            title="Casos con monto reclamado > 0 y recuperación = 0"
+            title="Porcentaje de quejas con monto reclamado > 0 y recuperación = 0"
         ),
         use_container_width=True
     )
@@ -644,25 +650,26 @@ with tab2:
         .reset_index(name="casos")
     )
 
-    casos_no_reclamo["usuarios"] = casos_no_reclamo["proveedor_top"].map(
-        usuarios_por_proveedor
+    casos_no_reclamo["total_quejas"] = casos_no_reclamo["proveedor_top"].map(
+        total_quejas_prov
     )
 
+
     if normalizar_casos:
-        casos_no_reclamo["casos"] = (
+        casos_no_reclamo["porcentaje"] = (
             casos_no_reclamo["casos"]
-            / casos_no_reclamo["usuarios"] * 100000
+            / casos_no_reclamo["total_quejas"] * 100
         )
 
     casos_no_reclamo = casos_no_reclamo.sort_values("casos", ascending=True)
 
     st.plotly_chart(
         px.bar(
-            casos_no_reclamo,
-            x="casos",
+            casos_no_reclamo.sort_values("porcentaje", ascending=True),
+            x="porcentaje",
             y="proveedor_top",
             orientation="h",
-            title="Casos con monto reclamado = 0 y recuperación > 0"
+            title="Porcentaje de quejas con monto reclamado = 0 y recuperación > 0"
         ),
         use_container_width=True
     )
@@ -761,6 +768,7 @@ with tab3:
         ),
         use_container_width=True
     )
+
 
 
 
