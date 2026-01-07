@@ -525,9 +525,7 @@ with tab2:
     df_eco = df[df["proveedor_top"].isin(top_prov)].copy()
 
     # aqui
-    normalizar = st.checkbox(
-        "Normalizar montos por número estimado de usuarios del proveedor"
-    )
+    normalizar = st.checkbox( "Normalizar montos por número estimado de usuarios del proveedor")
 
     # AGREGACIÓN ECONÓMICA
     eco_agregado = (
@@ -539,11 +537,8 @@ with tab2:
         .reset_index()
     )
     
-    eco_agregado["usuarios"] = eco_agregado["proveedor_top"].map(
-        usuarios_por_proveedor
-    )
+    eco_agregado["usuarios"] = eco_agregado["proveedor_top"].map(usuarios_por_proveedor    )
     
-    # Validación mínima
     eco_agregado = eco_agregado.dropna(subset=["usuarios"])
     
     if normalizar:
@@ -702,6 +697,7 @@ with tab3:
         ),
         use_container_width=True
     )
+
 
 
 
