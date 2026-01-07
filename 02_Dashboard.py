@@ -420,7 +420,7 @@ with tab2:
 
 
     # Preparar dataset económico
-        eco_df = df[[
+    eco_df = df[[
         "proveedor_top",
         "monto_reclamado",
         "monto_recuperado",
@@ -586,6 +586,7 @@ with tab3:
         ),
         use_container_width=True
     )
+
 
 
 
