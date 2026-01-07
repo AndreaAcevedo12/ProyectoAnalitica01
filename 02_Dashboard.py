@@ -527,7 +527,7 @@ with tab2:
     # aqui
     normalizar = st.checkbox(
     "Normalizar montos por número estimado de usuarios del proveedor"
-)
+    )
 
     # AGREGACIÓN ECONÓMICA
     eco_agregado = (
@@ -702,6 +702,7 @@ with tab3:
         ),
         use_container_width=True
     )
+
 
 
 
