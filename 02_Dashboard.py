@@ -524,12 +524,12 @@ with tab2:
 
     df_eco = df[df["proveedor_top"].isin(top_prov)].copy()
 
+    # aqui
     normalizar = st.checkbox(
-        "Normalizar montos por número estimado de usuarios del proveedor"
-    )
+    "Normalizar montos por número estimado de usuarios del proveedor"
+)
 
     # AGREGACIÓN ECONÓMICA
-
     eco_agregado = (
         df_eco.groupby("proveedor_top")
         .agg(
@@ -538,19 +538,22 @@ with tab2:
         )
         .reset_index()
     )
-
+    
     eco_agregado["usuarios"] = eco_agregado["proveedor_top"].map(
         usuarios_por_proveedor
     )
-
+    
     # Validación mínima
     eco_agregado = eco_agregado.dropna(subset=["usuarios"])
-
+    
     if normalizar:
-        eco_agregado["monto_reclamado_total"] = (eco_agregado["monto_reclamado_total"] / eco_agregado["usuarios"] * 100000)
-        eco_agregado["monto_recuperado_total"] = (eco_agregado["monto_recuperado_total"] / eco_agregado["usuarios"] * 100000)
-
-
+        eco_agregado["monto_reclamado_total"] = (
+            eco_agregado["monto_reclamado_total"] / eco_agregado["usuarios"] * 100000
+        )
+        eco_agregado["monto_recuperado_total"] = (
+            eco_agregado["monto_recuperado_total"] / eco_agregado["usuarios"] * 100000
+        )
+    
     eco_long = eco_agregado.melt(
         id_vars="proveedor_top",
         value_vars=[
@@ -561,6 +564,8 @@ with tab2:
         value_name="monto"
     )
 
+    
+    
     # GRÁFICA A — COMPARACIÓN ECONÓMICA
 
     st.subheader("Montos reclamados vs montos recuperados por proveedor")
@@ -697,6 +702,7 @@ with tab3:
         ),
         use_container_width=True
     )
+
 
 
 
