@@ -408,13 +408,29 @@ with tab2:
         """
     )
 
-    # Preparamos dataset económico
-    eco_df = df[[
+     #  Filtro por proveedor 
+    proveedores = sorted(df["proveedor_top"].dropna().unique())
+    proveedores_filtro = ["Todos"] + proveedores
+
+    sel_proveedor_eco = st.selectbox(
+        "Selecciona Top Proveedor",
+        proveedores_filtro,
+        index=0
+    )
+
+
+    # Preparar dataset económico
+        eco_df = df[[
+        "proveedor_top",
         "monto_reclamado",
         "monto_recuperado",
         "resuelta",
         "dias_resolucion"
     ]].dropna()
+
+    if sel_proveedor_eco != "Todos":
+        eco_df = eco_df[eco_df["proveedor_top"] == sel_proveedor_eco]
+
 
     eco_df["porcentaje_resolucion"] = eco_df["resuelta"] * 100
 
@@ -448,8 +464,15 @@ with tab2:
 
         st.divider()
 
+        sufijo_titulo = (
+        f" — {sel_proveedor_eco}"
+        if sel_proveedor_eco != "Todos"
+        else " — Todos los proveedores"
+    )
+
     # 1 Monto reclamado vs monto recuperado
-    st.subheader("Monto reclamado vs monto recuperado")
+    st.subheader("Monto reclamado vs monto recuperado" + sufijo_titulo)
+
 
     analizar_correlacion(
         eco_df["monto_reclamado"],
@@ -458,7 +481,7 @@ with tab2:
         "Monto recuperado"
     )
     # 2 Porcentaje de resolución vs días de resolución
-    st.subheader("Monto reclamado vs días de resolución")
+    st.subheader("Monto reclamado vs días de resolución" + sufijo_titulo)
 
     analizar_correlacion(
         eco_df["dias_resolucion"],
@@ -468,13 +491,13 @@ with tab2:
     )
 
     # 3 Porcentaje de resolución vs días de resolución
-    st.subheader("Monto recuperado vs días de resolución")
+    st.subheader("Monto recuperado vs días de resolución" + sufijo_titulo)
 
     analizar_correlacion(
         eco_df["dias_resolucion"],
         eco_df["monto_recuperado"],
         "Días de resolución",
-        "Monto reclamado"
+        "Monto recuperado"
     )
     
 
@@ -563,6 +586,7 @@ with tab3:
         ),
         use_container_width=True
     )
+
 
 
 
