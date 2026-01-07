@@ -535,7 +535,7 @@ with tab2:
 
     with col_b:
         normalizar_casos = st.checkbox(
-            "Normalizar número de casos por cada 100,000 usuarios"
+            "Normalizar número de casos por cada 100 quejas"
         )
 
     # AGREGACIÓN DE MONTOS
@@ -780,6 +780,7 @@ with tab3:
         ),
         use_container_width=True
     )
+
 
 
 
