@@ -599,80 +599,92 @@ with tab2:
     # CASO A: monto reclamado > 0 y recuperado = 0
 
     st.subheader("Casos con monto reclamado y recuperación igual a $0")
-
+    
     df_no_recupera = df_eco[
         (df_eco["monto_reclamado"] > 0) &
         (df_eco["monto_recuperado"] == 0)
     ]
-
+    
     casos_no_rec = (
         df_no_recupera.groupby("proveedor_top")
         .size()
         .reset_index(name="casos")
     )
-
+    
     casos_no_rec["total_quejas"] = casos_no_rec["proveedor_top"].map(
         total_quejas_prov
     )
-
+    
     if normalizar_casos:
-        casos_no_rec["porcentaje"] = (
-        casos_no_rec["casos"]
-        / casos_no_rec["total_quejas"] * 100
+        casos_no_rec["valor"] = (
+            casos_no_rec["casos"]
+            / casos_no_rec["total_quejas"] * 100
         )
-
-    casos_no_rec = casos_no_rec.sort_values("casos", ascending=True)
-
+        eje_x = "valor"
+        titulo = "Porcentaje de quejas con monto reclamado > 0 y recuperación = 0"
+    else:
+        casos_no_rec["valor"] = casos_no_rec["casos"]
+        eje_x = "valor"
+        titulo = "Número de casos con monto reclamado > 0 y recuperación = 0"
+    
+    casos_no_rec = casos_no_rec.sort_values(eje_x, ascending=True)
+    
     st.plotly_chart(
         px.bar(
-            casos_no_rec.sort_values("porcentaje", ascending=True),
-            x="porcentaje",
+            casos_no_rec,
+            x=eje_x,
             y="proveedor_top",
             orientation="h",
-            title="Porcentaje de quejas con monto reclamado > 0 y recuperación = 0"
+            title=titulo
         ),
         use_container_width=True
     )
 
-    
-    # CASO B: monto reclamado = 0 y recuperado > 0
-   
-    st.subheader("Casos con recuperación positiva y monto reclamado igual a $0")
 
+    # CASO B: monto reclamado = 0 y recuperado > 0
+
+    st.subheader("Casos con recuperación positiva y monto reclamado igual a $0")
+    
     df_no_reclamo = df_eco[
         (df_eco["monto_reclamado"] == 0) &
         (df_eco["monto_recuperado"] > 0)
     ]
-
+    
     casos_no_reclamo = (
         df_no_reclamo.groupby("proveedor_top")
         .size()
         .reset_index(name="casos")
     )
-
+    
     casos_no_reclamo["total_quejas"] = casos_no_reclamo["proveedor_top"].map(
         total_quejas_prov
     )
-
-
+    
     if normalizar_casos:
-        casos_no_reclamo["porcentaje"] = (
+        casos_no_reclamo["valor"] = (
             casos_no_reclamo["casos"]
             / casos_no_reclamo["total_quejas"] * 100
         )
-
-    casos_no_reclamo = casos_no_reclamo.sort_values("casos", ascending=True)
-
+        eje_x = "valor"
+        titulo = "Porcentaje de quejas con monto reclamado = 0 y recuperación > 0"
+    else:
+        casos_no_reclamo["valor"] = casos_no_reclamo["casos"]
+        eje_x = "valor"
+        titulo = "Número de casos con monto reclamado = 0 y recuperación > 0"
+    
+    casos_no_reclamo = casos_no_reclamo.sort_values(eje_x, ascending=True)
+    
     st.plotly_chart(
         px.bar(
-            casos_no_reclamo.sort_values("porcentaje", ascending=True),
-            x="porcentaje",
+            casos_no_reclamo,
+            x=eje_x,
             y="proveedor_top",
             orientation="h",
-            title="Porcentaje de quejas con monto reclamado = 0 y recuperación > 0"
+            title=titulo
         ),
         use_container_width=True
     )
+
 
 
 
@@ -768,6 +780,7 @@ with tab3:
         ),
         use_container_width=True
     )
+
 
 
 
