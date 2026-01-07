@@ -464,10 +464,11 @@ with tab2:
 
         st.divider()
 
-        sufijo_titulo = (
-        f" — {sel_proveedor_eco}"
-        if sel_proveedor_eco != "Todos"
-        else " — Todos los proveedores"
+        
+    sufijo_titulo = (
+    f" — {sel_proveedor_eco}"
+    if sel_proveedor_eco != "Todos"
+    else " — Todos los proveedores"
     )
 
     # 1 Monto reclamado vs monto recuperado
@@ -586,6 +587,7 @@ with tab3:
         ),
         use_container_width=True
     )
+
 
 
 
