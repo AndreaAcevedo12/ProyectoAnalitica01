@@ -500,6 +500,115 @@ with tab2:
         "Días de resolución",
         "Monto recuperado"
     )
+    # a partir de aqui
+
+    usuarios_por_proveedor = {
+        "TELCEL": 162420073,
+        "MOVISTAR": 31934419,
+        "MEGACABLE": 12009829,
+        "IZZI": 15489758,
+        "TOTALPLAY": 12241992,
+        "AT&T": 42184165,
+        "TELMEX": 19510076
+    }
+
+    
+    # FILTROS
+
+    top_prov = (
+        df["proveedor_top"]
+        .value_counts()
+        .head(7)
+        .index
+    )
+
+    df_eco = df[df["proveedor_top"].isin(top_prov)].copy()
+
+    normalizar = st.checkbox(
+        "Normalizar montos por número estimado de usuarios del proveedor"
+    )
+
+    # AGREGACIÓN ECONÓMICA
+
+    eco_agregado = (
+        df_eco.groupby("proveedor_top")
+        .agg(
+            monto_reclamado_total=("monto_reclamado", "sum"),
+            monto_recuperado_total=("monto_recuperado", "sum")
+        )
+        .reset_index()
+    )
+
+    eco_agregado["usuarios"] = eco_agregado["proveedor_top"].map(
+        usuarios_por_proveedor
+    )
+
+    # Validación mínima
+    eco_agregado = eco_agregado.dropna(subset=["usuarios"])
+
+    if normalizar:
+        eco_agregado["monto_reclamado_total"] /= eco_agregado["usuarios"]
+        eco_agregado["monto_recuperado_total"] /= eco_agregado["usuarios"]
+
+    eco_long = eco_agregado.melt(
+        id_vars="proveedor_top",
+        value_vars=[
+            "monto_reclamado_total",
+            "monto_recuperado_total"
+        ],
+        var_name="tipo_monto",
+        value_name="monto"
+    )
+
+    # GRÁFICA A — COMPARACIÓN ECONÓMICA
+
+    st.subheader("Montos reclamados vs montos recuperados por proveedor")
+
+    st.plotly_chart(
+        px.bar(
+            eco_long,
+            x="proveedor_top",
+            y="monto",
+            color="tipo_monto",
+            barmode="group",
+            title="Comparación económica por proveedor"
+        ),
+        use_container_width=True
+    )
+
+    # GRÁFICA B — CASOS SIN DEVOLUCIÓN
+
+    st.subheader("Casos con monto reclamado y recuperación igual a $0")
+
+    df_no_dev = df_eco[
+        (df_eco["monto_reclamado"] > 0) &
+        (df_eco["monto_recuperado"] == 0)
+    ]
+
+    no_dev = (
+        df_no_dev.groupby("proveedor_top")
+        .size()
+        .reset_index(name="casos_sin_devolucion")
+        .sort_values("casos_sin_devolucion", ascending=True)
+    )
+
+    st.plotly_chart(
+        px.bar(
+            no_dev,
+            x="casos_sin_devolucion",
+            y="proveedor_top",
+            orientation="h",
+            title="Frecuencia de no devolución por proveedor"
+        ),
+        use_container_width=True
+    )
+
+
+
+
+
+
+
     
 
 
@@ -587,6 +696,7 @@ with tab3:
         ),
         use_container_width=True
     )
+
 
 
 
