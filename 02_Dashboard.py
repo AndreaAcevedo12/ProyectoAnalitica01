@@ -502,6 +502,8 @@ with tab2:
     )
     # a partir de aqui
 
+    st.header("Análisis económico agregado por proveedor")
+
     usuarios_por_proveedor = {
         "TELCEL": 162420073,
         "MOVISTAR": 31934419,
@@ -512,9 +514,6 @@ with tab2:
         "TELMEX": 19510076
     }
 
-    
-    # FILTROS
-
     top_prov = (
         df["proveedor_top"]
         .value_counts()
@@ -524,10 +523,22 @@ with tab2:
 
     df_eco = df[df["proveedor_top"].isin(top_prov)].copy()
 
-    # aqui
-    normalizar = st.checkbox( "Normalizar montos por número estimado de usuarios del proveedor")
+    # CHECKBOXES DE NORMALIZACIÓN
 
-    # AGREGACIÓN ECONÓMICA
+
+    col_a, col_b = st.columns(2)
+
+    with col_a:
+        normalizar_montos = st.checkbox(
+            "Normalizar montos por cada 100,000 usuarios"
+        )
+
+    with col_b:
+        normalizar_casos = st.checkbox(
+            "Normalizar número de casos por cada 100,000 usuarios"
+        )
+
+    # AGREGACIÓN DE MONTOS
     eco_agregado = (
         df_eco.groupby("proveedor_top")
         .agg(
@@ -536,19 +547,23 @@ with tab2:
         )
         .reset_index()
     )
-    
-    eco_agregado["usuarios"] = eco_agregado["proveedor_top"].map(usuarios_por_proveedor    )
-    
+
+    eco_agregado["usuarios"] = eco_agregado["proveedor_top"].map(
+        usuarios_por_proveedor
+    )
+
     eco_agregado = eco_agregado.dropna(subset=["usuarios"])
-    
-    if normalizar:
+
+    if normalizar_montos:
         eco_agregado["monto_reclamado_total"] = (
-            eco_agregado["monto_reclamado_total"] / eco_agregado["usuarios"] * 100000
+            eco_agregado["monto_reclamado_total"]
+            / eco_agregado["usuarios"] * 100000
         )
         eco_agregado["monto_recuperado_total"] = (
-            eco_agregado["monto_recuperado_total"] / eco_agregado["usuarios"] * 100000
+            eco_agregado["monto_recuperado_total"]
+            / eco_agregado["usuarios"] * 100000
         )
-    
+
     eco_long = eco_agregado.melt(
         id_vars="proveedor_top",
         value_vars=[
@@ -559,9 +574,7 @@ with tab2:
         value_name="monto"
     )
 
-    
-    
-    # GRÁFICA A — COMPARACIÓN ECONÓMICA
+    # GRÁFICA 1 — MONTOS
 
     st.subheader("Montos reclamados vs montos recuperados por proveedor")
 
@@ -577,32 +590,83 @@ with tab2:
         use_container_width=True
     )
 
-    # GRÁFICA B — CASOS SIN DEVOLUCIÓN
+    # CASO A: monto reclamado > 0 y recuperado = 0
 
     st.subheader("Casos con monto reclamado y recuperación igual a $0")
 
-    df_no_dev = df_eco[
+    df_no_recupera = df_eco[
         (df_eco["monto_reclamado"] > 0) &
         (df_eco["monto_recuperado"] == 0)
     ]
 
-    no_dev = (
-        df_no_dev.groupby("proveedor_top")
+    casos_no_rec = (
+        df_no_recupera.groupby("proveedor_top")
         .size()
-        .reset_index(name="casos_sin_devolucion")
-        .sort_values("casos_sin_devolucion", ascending=True)
+        .reset_index(name="casos")
     )
+
+    casos_no_rec["usuarios"] = casos_no_rec["proveedor_top"].map(
+        usuarios_por_proveedor
+    )
+
+    if normalizar_casos:
+        casos_no_rec["casos"] = (
+            casos_no_rec["casos"]
+            / casos_no_rec["usuarios"] * 100000
+        )
+
+    casos_no_rec = casos_no_rec.sort_values("casos", ascending=True)
 
     st.plotly_chart(
         px.bar(
-            no_dev,
-            x="casos_sin_devolucion",
+            casos_no_rec,
+            x="casos",
             y="proveedor_top",
             orientation="h",
-            title="Frecuencia de no devolución por proveedor"
+            title="Casos con monto reclamado > 0 y recuperación = 0"
         ),
         use_container_width=True
     )
+
+    
+    # CASO B: monto reclamado = 0 y recuperado > 0
+   
+    st.subheader("Casos con recuperación positiva y monto reclamado igual a $0")
+
+    df_no_reclamo = df_eco[
+        (df_eco["monto_reclamado"] == 0) &
+        (df_eco["monto_recuperado"] > 0)
+    ]
+
+    casos_no_reclamo = (
+        df_no_reclamo.groupby("proveedor_top")
+        .size()
+        .reset_index(name="casos")
+    )
+
+    casos_no_reclamo["usuarios"] = casos_no_reclamo["proveedor_top"].map(
+        usuarios_por_proveedor
+    )
+
+    if normalizar_casos:
+        casos_no_reclamo["casos"] = (
+            casos_no_reclamo["casos"]
+            / casos_no_reclamo["usuarios"] * 100000
+        )
+
+    casos_no_reclamo = casos_no_reclamo.sort_values("casos", ascending=True)
+
+    st.plotly_chart(
+        px.bar(
+            casos_no_reclamo,
+            x="casos",
+            y="proveedor_top",
+            orientation="h",
+            title="Casos con monto reclamado = 0 y recuperación > 0"
+        ),
+        use_container_width=True
+    )
+
 
 
 
@@ -697,6 +761,7 @@ with tab3:
         ),
         use_container_width=True
     )
+
 
 
 
