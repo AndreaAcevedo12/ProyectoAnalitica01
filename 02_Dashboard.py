@@ -547,13 +547,13 @@ with tab2:
     eco_agregado = eco_agregado.dropna(subset=["usuarios"])
 
     if normalizar:
-    eco_agregado["monto_reclamado_total"] = (
-        eco_agregado["monto_reclamado_total"] / eco_agregado["usuarios"] * 100000
-    )
+        eco_agregado["monto_reclamado_total"] = (
+            eco_agregado["monto_reclamado_total"] / eco_agregado["usuarios"] * 100000
+        )
 
-    eco_agregado["monto_recuperado_total"] = (
-        eco_agregado["monto_recuperado_total"] / eco_agregado["usuarios"] * 100000
-    )
+        eco_agregado["monto_recuperado_total"] = (
+            eco_agregado["monto_recuperado_total"] / eco_agregado["usuarios"] * 100000
+        )
 
 
     eco_long = eco_agregado.melt(
@@ -702,6 +702,7 @@ with tab3:
         ),
         use_container_width=True
     )
+
 
 
 
