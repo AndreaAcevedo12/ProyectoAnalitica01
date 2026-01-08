@@ -135,7 +135,7 @@ with tab1:
         pct_concil = 0
     
     k1, k2, k3 = st.columns(3)
-    k1.metric("Total Quejas", f"{total_q:,}")
+    k1.metric("Total quejas", f"{total_q:,}")
     k2.metric("Proveedores", f"{df_filtered['nombre_comercial'].nunique()}")
     k3.metric("% Conciliación", f"{pct_concil:.1f}%")
     
@@ -153,7 +153,7 @@ with tab1:
     with col_ctrl_1:
         tipo_suavizado = st.selectbox(
             "Tipo de suavizado",
-            ["Sin suavizar", "Media móvil", "Mediana móvil"]
+            ["Sin suavizar", "Media móvil"]
         )
     
     with col_ctrl_2:
@@ -161,7 +161,7 @@ with tab1:
             "Ventana (días)",
             min_value=3,
             max_value=30,
-            value=7
+            value=20
         )
     
     # AGREGACIÓN DIARIA
@@ -182,7 +182,7 @@ with tab1:
                 lambda x: (
                     x.rolling(window=ventana, center=True).mean()
                     if tipo_suavizado == "Media móvil"
-                    else x.rolling(window=ventana, center=True).median()
+                    
                 )
             )
         )
@@ -844,6 +844,7 @@ with tab3:
         ),
         use_container_width=True
     )
+
 
 
 
