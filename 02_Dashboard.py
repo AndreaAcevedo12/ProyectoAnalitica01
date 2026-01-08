@@ -182,6 +182,7 @@ with tab1:
                 lambda x: (
                     x.rolling(window=ventana, center=True).mean()
                     if tipo_suavizado == "Media móvil"
+                    else x.rolling(window=ventana, center=True).median()
                     
                 )
             )
@@ -844,6 +845,7 @@ with tab3:
         ),
         use_container_width=True
     )
+
 
 
 
