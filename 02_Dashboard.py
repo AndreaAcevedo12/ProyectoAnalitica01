@@ -120,6 +120,8 @@ with tab1:
         df_filtered = df[mask].copy()
     else:
         df_filtered = df.copy()
+    df_filtered["dia"] = df_filtered["fecha_ingreso"].dt.date
+
 
     # KPIs
     total_q = len(df_filtered)
@@ -842,6 +844,7 @@ with tab3:
         ),
         use_container_width=True
     )
+
 
 
 
