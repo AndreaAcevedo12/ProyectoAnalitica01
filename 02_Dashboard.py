@@ -141,49 +141,111 @@ with tab1:
 
     # Bloque 1: Evolución
     
+    # Bloque 1: Evolución temporal (DIARIA)
+
     st.subheader("Tendencia temporal")
     
-    freq_alias = "M"
+    # CONTROLES
+    col_ctrl_1, col_ctrl_2 = st.columns(2)
     
-    df_evo = df_filtered.set_index("fecha_ingreso").groupby(
-        [pd.Grouper(freq=freq_alias), "nombre_comercial", "_key_prov"]
-    ).size().reset_index(name="conteo")
-
-    col_evo_1, col_evo_2 = st.columns(2)
-
-    with col_evo_1:
-        st.markdown("**1. Volumen absoluto**")
-        fig_abs = px.line(
-            df_evo, x="fecha_ingreso", y="conteo", color="nombre_comercial", markers=True,
-            title="Quejas mensuales",
-            labels={"conteo": "Quejas", "fecha_ingreso": "Fecha"}
+    with col_ctrl_1:
+        tipo_suavizado = st.selectbox(
+            "Tipo de suavizado",
+            ["Sin suavizar", "Media móvil", "Mediana móvil"]
         )
-        fig_abs.update_layout(legend=dict(orientation="h", y=-0.2))
+    
+    with col_ctrl_2:
+        ventana = st.slider(
+            "Ventana (días)",
+            min_value=3,
+            max_value=30,
+            value=7
+        )
+    
+    # AGREGACIÓN DIARIA
+    df_evo = (
+        df_filtered
+        .groupby(["dia", "nombre_comercial", "_key_prov"])
+        .size()
+        .reset_index(name="conteo")
+        .sort_values("dia")
+    )
+    
+    # APLICAR SUAVIZADO
+    if tipo_suavizado != "Sin suavizar":
+        df_evo["conteo_suave"] = (
+            df_evo
+            .groupby("nombre_comercial")["conteo"]
+            .transform(
+                lambda x: (
+                    x.rolling(window=ventana, center=True).mean()
+                    if tipo_suavizado == "Media móvil"
+                    else x.rolling(window=ventana, center=True).median()
+                )
+            )
+        )
+        y_plot = "conteo_suave"
+        y_label = f"Quejas ({tipo_suavizado.lower()})"
+    else:
+        y_plot = "conteo"
+        y_label = "Quejas diarias"
+    
+    # GRÁFICAS
+    col_evo_1, col_evo_2 = st.columns(2)
+    
+    # 1 Volumen absoluto
+    with col_evo_1:
+        st.markdown("**1. Volumen absoluto (diario)**")
+    
+        fig_abs = px.line(
+            df_evo,
+            x="dia",
+            y=y_plot,
+            color="nombre_comercial",
+            title="Evolución diaria de quejas",
+            labels={"dia": "Fecha", y_plot: y_label}
+        )
+    
+        fig_abs.update_layout(legend=dict(orientation="h", y=-0.25))
         st.plotly_chart(fig_abs, use_container_width=True)
-
+    
+    #  2 Tasa por usuarios
     with col_evo_2:
-        st.markdown("**2. Tasa real (por 10k usuarios)**")
-        # Cruce con usuarios
+        st.markdown("**2. Tasa diaria ponderada por usuarios**")
+    
         df_evo_rel = pd.merge(
-            df_evo, 
-            perfil_df[["_key_prov", "usuarios_totales"]], 
-            on="_key_prov", 
+            df_evo,
+            perfil_df[["_key_prov", "usuarios_totales"]],
+            on="_key_prov",
             how="left"
         )
-        df_evo_rel["usuarios_totales"] = pd.to_numeric(df_evo_rel["usuarios_totales"], errors='coerce').fillna(1)
-        df_evo_rel["tasa"] = (df_evo_rel["conteo"] / df_evo_rel["usuarios_totales"]) * 10000
+    
+        df_evo_rel["usuarios_totales"] = (
+            pd.to_numeric(df_evo_rel["usuarios_totales"], errors="coerce")
+            .fillna(1)
+        )
+    
+        df_evo_rel["tasa"] = (
+            df_evo_rel[y_plot] / df_evo_rel["usuarios_totales"] * 10000
+        )
+    
         df_plot_rel = df_evo_rel[df_evo_rel["usuarios_totales"] > 100]
-
+    
         if not df_plot_rel.empty:
             fig_rel = px.line(
-                df_plot_rel, x="fecha_ingreso", y="tasa", color="nombre_comercial", markers=True,
-                title="Impacto ponderado por usuarios",
-                labels={"tasa": "Tasa", "fecha_ingreso": "Fecha"}
+                df_plot_rel,
+                x="dia",
+                y="tasa",
+                color="nombre_comercial",
+                title="Tasa diaria por 10,000 usuarios",
+                labels={"dia": "Fecha", "tasa": "Tasa"}
             )
-            fig_rel.update_layout(legend=dict(orientation="h", y=-0.2))
+    
+            fig_rel.update_layout(legend=dict(orientation="h", y=-0.25))
             st.plotly_chart(fig_rel, use_container_width=True)
         else:
-            st.info("Falta información de usuarios para calcular la tasa.")
+            st.info("No hay información suficiente de usuarios para calcular la tasa.")
+
 
     # Bloque 2: Ranking geográfico
     
@@ -780,6 +842,7 @@ with tab3:
         ),
         use_container_width=True
     )
+
 
 
 
