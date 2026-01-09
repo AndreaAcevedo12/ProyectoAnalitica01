@@ -2,8 +2,8 @@
 Proyecto final de Analítica y Visualización de Datos para la carrera Licenciatura en Ciencia de Datos
 
 Autoras:
-Acevedo Medina Andrea Montserrat
-Femat Colin Viviana
+- Acevedo Medina Andrea Montserrat
+- Femat Colin Viviana
 
 
 Este proyecto presenta un análisis exploratorio, estadístico y visual de datos de quejas de usuarios de servicios de telecomunicaciones en México, utilizando información pública perteneciente a la PROFECO de los años del 2022 al 2025.
